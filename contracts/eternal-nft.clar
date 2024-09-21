@@ -1,9 +1,10 @@
-;; NFT-based Subscription Service (Simplified)
+;; NFT-based Subscription Service (Improved)
 
 ;; Constants
 (define-constant CONTRACT_OWNER tx-sender)
 (define-constant ERR_NOT_AUTHORIZED (err u100))
 (define-constant ERR_NOT_FOUND (err u102))
+(define-constant ERR_INVALID_INPUT (err u103))
 
 ;; Data Variables
 (define-data-var last-token-id uint u0)
@@ -35,6 +36,19 @@
   (is-eq tx-sender CONTRACT_OWNER)
 )
 
+(define-private (validate-service-input (name (string-ascii 50)) (price uint) (duration uint))
+  (and
+    (> (len name) u0)
+    (< (len name) u51)
+    (> price u0)
+    (> duration u0)
+  )
+)
+
+(define-private (validate-subscription-input (service-id uint))
+  (is-some (map-get? services service-id))
+)
+
 ;; Public Functions
 ;; Create a new service
 (define-public (create-service (name (string-ascii 50)) (price uint) (duration uint))
@@ -43,6 +57,7 @@
       (service-id (+ (var-get last-token-id) u1))
     )
     (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
+    (asserts! (validate-service-input name price duration) ERR_INVALID_INPUT)
     (map-set services service-id {
       name: name,
       price: price,
@@ -62,6 +77,7 @@
       (end-block (+ block-height (get duration service)))
       (buyer tx-sender)
     )
+    (asserts! (validate-subscription-input service-id) ERR_INVALID_INPUT)
     (try! (stx-transfer? (get price service) buyer (as-contract tx-sender)))
     (try! (nft-mint? subscription-nft subscription-id buyer))
     (map-set subscriptions subscription-id {
@@ -88,6 +104,7 @@
 (define-public (transfer (token-id uint) (sender principal) (recipient principal))
   (begin
     (asserts! (is-eq tx-sender sender) ERR_NOT_AUTHORIZED)
+    (asserts! (is-some (nft-get-owner? subscription-nft token-id)) ERR_NOT_FOUND)
     (nft-transfer? subscription-nft token-id sender recipient)
   )
 )
