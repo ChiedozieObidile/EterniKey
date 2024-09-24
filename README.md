@@ -1,8 +1,8 @@
-# NFT-based Subscription Service with Time-lock and Cross-Chain Functionality
+# NFT-based Subscription Service with Time-lock, Cross-Chain Functionality, and Gifting
 
 ## Overview
 
-This project implements a decentralized, NFT-based subscription service using Clarity smart contracts on the Stacks blockchain. It allows content creators and service providers to offer subscription-based access to their products, with automatic time-locking functionality and cross-chain NFT validation.
+This project implements a decentralized, NFT-based subscription service using Clarity smart contracts on the Stacks blockchain. It allows content creators and service providers to offer subscription-based access to their products, with automatic time-locking functionality, cross-chain NFT validation, and subscription gifting.
 
 ## Features
 
@@ -14,6 +14,7 @@ This project implements a decentralized, NFT-based subscription service using Cl
 - **Subscription Management**: Users can purchase, renew, pause, and resume subscriptions.
 - **Transferable Subscriptions**: Users can transfer their subscription NFTs to others.
 - **Cross-Chain NFT Validation**: Users can claim subscriptions based on NFT ownership on other chains (e.g., Ethereum or Solana).
+- **Subscription Gifting**: Users can gift subscriptions to other users.
 
 ## Smart Contract Functions
 
@@ -38,6 +39,7 @@ This project implements a decentralized, NFT-based subscription service using Cl
 - `pause-subscription(subscription-id)`: Pause an active subscription.
 - `resume-subscription(subscription-id)`: Resume a paused subscription.
 - `claim-cross-chain-subscription(service-id, chain, nft-id)`: Claim a subscription based on NFT ownership on another chain.
+- `gift-subscription(service-id, recipient)`: Gift a subscription to another user.
 
 ### User Balance Management
 
@@ -70,8 +72,9 @@ The contract includes various error codes to handle different scenarios:
 - `ERR_INSUFFICIENT_BALANCE (u105)`: User has insufficient balance.
 - `ERR_INVALID_AMOUNT (u106)`: Invalid amount specified.
 - `ERR_SUBSCRIPTION_ACTIVE (u107)`: Subscription is already active.
-- `ERR_ALREADY_CLAIMED (u104)`: Cross-chain NFT has already been claimed.
-- `ERR_INVALID_PRINCIPAL (u105)`: Invalid principal address provided.
+- `ERR_ALREADY_CLAIMED (u108)`: Cross-chain NFT has already been claimed.
+- `ERR_INVALID_PRINCIPAL (u109)`: Invalid principal address provided.
+- `ERR_INSUFFICIENT_FUNDS (u110)`: Insufficient funds for gifting a subscription.
 
 ## Usage
 
@@ -83,8 +86,9 @@ The contract includes various error codes to handle different scenarios:
 6. Users can deposit funds using `deposit-funds(amount)`.
 7. Users can purchase subscriptions using `purchase-subscription(...)`.
 8. Users can manage their subscriptions (renew, cancel auto-renew, pause, resume, transfer).
-9. Users with NFTs on other chains can claim subscriptions using `claim-cross-chain-subscription(...)`.
-10. The `process-auto-renewals()` function should be called periodically to handle automatic renewals.
+9. Users can gift subscriptions to others using `gift-subscription(...)`.
+10. Users with NFTs on other chains can claim subscriptions using `claim-cross-chain-subscription(...)`.
+11. The `process-auto-renewals()` function should be called periodically to handle automatic renewals.
 
 ## Cross-Chain Functionality
 
@@ -94,15 +98,14 @@ The cross-chain functionality allows users who own NFTs on other blockchains (e.
 2. The `claim-cross-chain-subscription` function that mints a subscription NFT on Stacks based on the oracle's verification.
 3. A mapping to track which cross-chain NFTs have been claimed to prevent double-claiming.
 
-## Security Considerations
+## Gifting Functionality
 
-- Only the contract owner can initialize the contract, manage service providers, and set the oracle address.
-- Service providers are verified before allowing service creation or updates.
-- User balances are managed within the contract to ensure secure transactions.
-- Subscription transfers require ownership verification.
-- Time-locking is handled automatically based on block height.
-- Cross-chain claims are processed through a trusted oracle to ensure validity.
-- Principals are validated to prevent setting the contract itself as the oracle or NFT recipient.
+The gifting feature allows users to purchase subscriptions for others:
+
+1. Users can gift subscriptions using the `gift-subscription(service-id, recipient)` function.
+2. The gifter pays for the subscription, and the NFT is minted directly to the recipient.
+3. This process is gas-efficient as it requires only one minting operation.
+4. The subscription is clearly marked as gifted from the beginning.
 
 ## Future Enhancements
 
@@ -112,10 +115,12 @@ The cross-chain functionality allows users who own NFTs on other blockchains (e.
 - Implement a governance system for community-driven decision-making.
 - Extend cross-chain functionality to support more blockchain networks.
 - Implement a decentralized oracle network for cross-chain verification.
+- Add gift message functionality to subscription gifts.
+- Implement bulk gifting for corporate or event use cases.
 
 ## Contributing
 
-Contributions to improve this NFT-based Subscription Service with Time-lock and Cross-Chain Functionality are welcome. Please submit pull requests with detailed descriptions of changes and ensure all tests pass.
+Contributions to improve this NFT-based Subscription Service with Time-lock, Cross-Chain Functionality, and Gifting are welcome. Please submit pull requests with detailed descriptions of changes and ensure all tests pass.
 
 ## Author
 

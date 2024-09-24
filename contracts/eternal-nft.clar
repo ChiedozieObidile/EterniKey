@@ -7,6 +7,7 @@
 (define-constant ERR_INVALID_INPUT (err u103))
 (define-constant ERR_ALREADY_CLAIMED (err u104))
 (define-constant ERR_INVALID_PRINCIPAL (err u105))
+(define-constant ERR_INSUFFICIENT_FUNDS (err u106))
 
 ;; Data Variables
 (define-data-var last-token-id uint u0)
@@ -124,6 +125,21 @@
       (ok (map-set subscriptions token-id 
         (merge subscription {owner: recipient})))
     )
+  )
+)
+
+;; New function for gifting subscriptions
+(define-public (gift-subscription (service-id uint) (recipient principal))
+  (let
+    (
+      (service (unwrap! (map-get? services service-id) ERR_NOT_FOUND))
+      (end-block (+ block-height (get duration service)))
+    )
+    (asserts! (validate-subscription-input service-id) ERR_INVALID_INPUT)
+    (asserts! (is-valid-principal recipient) ERR_INVALID_PRINCIPAL)
+    (asserts! (>= (stx-get-balance tx-sender) (get price service)) ERR_INSUFFICIENT_FUNDS)
+    (try! (stx-transfer? (get price service) tx-sender (as-contract tx-sender)))
+    (mint-subscription recipient service-id end-block)
   )
 )
 
