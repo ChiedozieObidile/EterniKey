@@ -1,13 +1,16 @@
-;; NFT-based Subscription Service 
+;; Cross-Chain NFT-based Subscription Service 
 
 ;; Constants
 (define-constant CONTRACT_OWNER tx-sender)
 (define-constant ERR_NOT_AUTHORIZED (err u100))
 (define-constant ERR_NOT_FOUND (err u102))
 (define-constant ERR_INVALID_INPUT (err u103))
+(define-constant ERR_ALREADY_CLAIMED (err u104))
+(define-constant ERR_INVALID_PRINCIPAL (err u105))
 
 ;; Data Variables
 (define-data-var last-token-id uint u0)
+(define-data-var oracle-address principal tx-sender)
 
 ;; Data Maps
 (define-map subscriptions
@@ -26,6 +29,11 @@
     price: uint,
     duration: uint
   }
+)
+
+(define-map cross-chain-claims
+  {chain: (string-ascii 20), nft-id: (string-ascii 66)}
+  bool
 )
 
 ;; NFT Definition
@@ -47,6 +55,10 @@
 
 (define-private (validate-subscription-input (service-id uint))
   (is-some (map-get? services service-id))
+)
+
+(define-private (is-valid-principal (address principal))
+  (not (is-eq address (as-contract tx-sender)))
 )
 
 ;; Public Functions
@@ -90,6 +102,40 @@
   )
 )
 
+;; Claim cross-chain subscription
+(define-public (claim-cross-chain-subscription (service-id uint) (chain (string-ascii 20)) (nft-id (string-ascii 66)))
+  (let
+    (
+      (service (unwrap! (map-get? services service-id) ERR_NOT_FOUND))
+      (subscription-id (+ (var-get last-token-id) u1))
+      (end-block (+ block-height (get duration service)))
+      (claim-key {chain: chain, nft-id: nft-id})
+    )
+    (asserts! (is-eq tx-sender (var-get oracle-address)) ERR_NOT_AUTHORIZED)
+    (asserts! (validate-subscription-input service-id) ERR_INVALID_INPUT)
+    (asserts! (is-none (map-get? cross-chain-claims claim-key)) ERR_ALREADY_CLAIMED)
+    
+    (try! (nft-mint? subscription-nft subscription-id tx-sender))
+    (map-set subscriptions subscription-id {
+      owner: tx-sender,
+      service-id: service-id,
+      end-block: end-block
+    })
+    (map-set cross-chain-claims claim-key true)
+    (var-set last-token-id subscription-id)
+    (ok subscription-id)
+  )
+)
+
+;; Set oracle address
+(define-public (set-oracle-address (new-oracle principal))
+  (begin
+    (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
+    (asserts! (is-valid-principal new-oracle) ERR_INVALID_PRINCIPAL)
+    (ok (var-set oracle-address new-oracle))
+  )
+)
+
 ;; Get subscription details
 (define-read-only (get-subscription-details (subscription-id uint))
   (map-get? subscriptions subscription-id)
@@ -100,11 +146,17 @@
   (map-get? services service-id)
 )
 
+;; Check if cross-chain NFT has been claimed
+(define-read-only (is-cross-chain-nft-claimed (chain (string-ascii 20)) (nft-id (string-ascii 66)))
+  (default-to false (map-get? cross-chain-claims {chain: chain, nft-id: nft-id}))
+)
+
 ;; NFT functions
 (define-public (transfer (token-id uint) (sender principal) (recipient principal))
   (begin
     (asserts! (is-eq tx-sender sender) ERR_NOT_AUTHORIZED)
     (asserts! (is-some (nft-get-owner? subscription-nft token-id)) ERR_NOT_FOUND)
+    (asserts! (is-valid-principal recipient) ERR_INVALID_PRINCIPAL)
     (nft-transfer? subscription-nft token-id sender recipient)
   )
 )
