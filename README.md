@@ -1,8 +1,8 @@
-# NFT-based Subscription Service with Time-lock Functionality
+# NFT-based Subscription Service with Time-lock and Cross-Chain Functionality
 
 ## Overview
 
-This project implements a decentralized, NFT-based subscription service using Clarity smart contracts on the Stacks blockchain. It allows content creators and service providers to offer subscription-based access to their products, with automatic time-locking functionality.
+This project implements a decentralized, NFT-based subscription service using Clarity smart contracts on the Stacks blockchain. It allows content creators and service providers to offer subscription-based access to their products, with automatic time-locking functionality and cross-chain NFT validation.
 
 ## Features
 
@@ -13,6 +13,7 @@ This project implements a decentralized, NFT-based subscription service using Cl
 - **Auto-renewal**: Optional auto-renewal feature for subscriptions.
 - **Subscription Management**: Users can purchase, renew, pause, and resume subscriptions.
 - **Transferable Subscriptions**: Users can transfer their subscription NFTs to others.
+- **Cross-Chain NFT Validation**: Users can claim subscriptions based on NFT ownership on other chains (e.g., Ethereum or Solana).
 
 ## Smart Contract Functions
 
@@ -21,6 +22,7 @@ This project implements a decentralized, NFT-based subscription service using Cl
 - `initialize()`: Initialize the contract (owner only).
 - `add-service-provider(provider)`: Add a new service provider (owner only).
 - `remove-service-provider(provider)`: Remove a service provider (owner only).
+- `set-oracle-address(new-oracle)`: Set the address of the trusted oracle for cross-chain validation (owner only).
 
 ### Service Management
 
@@ -35,6 +37,7 @@ This project implements a decentralized, NFT-based subscription service using Cl
 - `transfer-subscription(subscription-id, recipient)`: Transfer a subscription to another user.
 - `pause-subscription(subscription-id)`: Pause an active subscription.
 - `resume-subscription(subscription-id)`: Resume a paused subscription.
+- `claim-cross-chain-subscription(service-id, chain, nft-id)`: Claim a subscription based on NFT ownership on another chain.
 
 ### User Balance Management
 
@@ -49,6 +52,7 @@ This project implements a decentralized, NFT-based subscription service using Cl
 - `get-user-balance(user)`: Get the balance of a user.
 - `get-user-subscriptions(user)`: Get all subscriptions for a user.
 - `get-provider-services(provider)`: Get all services offered by a provider.
+- `is-cross-chain-nft-claimed(chain, nft-id)`: Check if a cross-chain NFT has been claimed for a subscription.
 
 ### Automated Operations
 
@@ -66,25 +70,39 @@ The contract includes various error codes to handle different scenarios:
 - `ERR_INSUFFICIENT_BALANCE (u105)`: User has insufficient balance.
 - `ERR_INVALID_AMOUNT (u106)`: Invalid amount specified.
 - `ERR_SUBSCRIPTION_ACTIVE (u107)`: Subscription is already active.
+- `ERR_ALREADY_CLAIMED (u104)`: Cross-chain NFT has already been claimed.
+- `ERR_INVALID_PRINCIPAL (u105)`: Invalid principal address provided.
 
 ## Usage
 
 1. Deploy the smart contract to the Stacks blockchain.
 2. Initialize the contract using the `initialize()` function.
 3. Add service providers using `add-service-provider(provider)`.
-4. Service providers can create services using `create-service(...)`.
-5. Users can deposit funds using `deposit-funds(amount)`.
-6. Users can purchase subscriptions using `purchase-subscription(...)`.
-7. Users can manage their subscriptions (renew, cancel auto-renew, pause, resume, transfer).
-8. The `process-auto-renewals()` function should be called periodically to handle automatic renewals.
+4. Set the oracle address for cross-chain validation using `set-oracle-address(new-oracle)`.
+5. Service providers can create services using `create-service(...)`.
+6. Users can deposit funds using `deposit-funds(amount)`.
+7. Users can purchase subscriptions using `purchase-subscription(...)`.
+8. Users can manage their subscriptions (renew, cancel auto-renew, pause, resume, transfer).
+9. Users with NFTs on other chains can claim subscriptions using `claim-cross-chain-subscription(...)`.
+10. The `process-auto-renewals()` function should be called periodically to handle automatic renewals.
+
+## Cross-Chain Functionality
+
+The cross-chain functionality allows users who own NFTs on other blockchains (e.g., Ethereum or Solana) to claim subscription services on the Stacks blockchain. This is achieved through the following components:
+
+1. A trusted oracle that verifies NFT ownership on other chains.
+2. The `claim-cross-chain-subscription` function that mints a subscription NFT on Stacks based on the oracle's verification.
+3. A mapping to track which cross-chain NFTs have been claimed to prevent double-claiming.
 
 ## Security Considerations
 
-- Only the contract owner can initialize the contract and manage service providers.
+- Only the contract owner can initialize the contract, manage service providers, and set the oracle address.
 - Service providers are verified before allowing service creation or updates.
 - User balances are managed within the contract to ensure secure transactions.
 - Subscription transfers require ownership verification.
 - Time-locking is handled automatically based on block height.
+- Cross-chain claims are processed through a trusted oracle to ensure validity.
+- Principals are validated to prevent setting the contract itself as the oracle or NFT recipient.
 
 ## Future Enhancements
 
@@ -92,11 +110,12 @@ The contract includes various error codes to handle different scenarios:
 - Add support for tiered subscription levels.
 - Integrate with external oracle services for dynamic pricing.
 - Implement a governance system for community-driven decision-making.
-
+- Extend cross-chain functionality to support more blockchain networks.
+- Implement a decentralized oracle network for cross-chain verification.
 
 ## Contributing
 
-Contributions to improve this NFT-based Subscription Services with Time-lock Functionality are welcome. Please submit pull requests with detailed descriptions of change and ensure all tests pass.
+Contributions to improve this NFT-based Subscription Service with Time-lock and Cross-Chain Functionality are welcome. Please submit pull requests with detailed descriptions of changes and ensure all tests pass.
 
 ## Author
 
