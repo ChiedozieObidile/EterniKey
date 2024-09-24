@@ -1,4 +1,4 @@
-;; Cross-Chain NFT-based Subscription Service 
+;; Gas-Optimized Cross-Chain NFT-based Subscription Service 
 
 ;; Constants
 (define-constant CONTRACT_OWNER tx-sender)
@@ -45,12 +45,7 @@
 )
 
 (define-private (validate-service-input (name (string-ascii 50)) (price uint) (duration uint))
-  (and
-    (> (len name) u0)
-    (< (len name) u51)
-    (> price u0)
-    (> duration u0)
-  )
+  (and (> (len name) u0) (< (len name) u51) (> price u0) (> duration u0))
 )
 
 (define-private (validate-subscription-input (service-id uint))
@@ -61,73 +56,56 @@
   (not (is-eq address (as-contract tx-sender)))
 )
 
-;; Public Functions
-;; Create a new service
-(define-public (create-service (name (string-ascii 50)) (price uint) (duration uint))
+(define-private (mint-subscription (owner principal) (service-id uint) (end-block uint))
   (let
-    (
-      (service-id (+ (var-get last-token-id) u1))
-    )
-    (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
-    (asserts! (validate-service-input name price duration) ERR_INVALID_INPUT)
-    (map-set services service-id {
-      name: name,
-      price: price,
-      duration: duration
-    })
-    (var-set last-token-id service-id)
-    (ok service-id)
-  )
-)
-
-;; Purchase a subscription
-(define-public (purchase-subscription (service-id uint))
-  (let
-    (
-      (service (unwrap! (map-get? services service-id) ERR_NOT_FOUND))
-      (subscription-id (+ (var-get last-token-id) u1))
-      (end-block (+ block-height (get duration service)))
-      (buyer tx-sender)
-    )
-    (asserts! (validate-subscription-input service-id) ERR_INVALID_INPUT)
-    (try! (stx-transfer? (get price service) buyer (as-contract tx-sender)))
-    (try! (nft-mint? subscription-nft subscription-id buyer))
-    (map-set subscriptions subscription-id {
-      owner: buyer,
-      service-id: service-id,
-      end-block: end-block
-    })
+    ((subscription-id (+ (var-get last-token-id) u1)))
+    (try! (nft-mint? subscription-nft subscription-id owner))
+    (map-set subscriptions subscription-id
+      {owner: owner, service-id: service-id, end-block: end-block})
     (var-set last-token-id subscription-id)
     (ok subscription-id)
   )
 )
 
-;; Claim cross-chain subscription
+;; Public Functions
+(define-public (create-service (name (string-ascii 50)) (price uint) (duration uint))
+  (let
+    ((service-id (+ (var-get last-token-id) u1)))
+    (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
+    (asserts! (validate-service-input name price duration) ERR_INVALID_INPUT)
+    (map-set services service-id {name: name, price: price, duration: duration})
+    (var-set last-token-id service-id)
+    (ok service-id)
+  )
+)
+
+(define-public (purchase-subscription (service-id uint))
+  (let
+    (
+      (service (unwrap! (map-get? services service-id) ERR_NOT_FOUND))
+      (end-block (+ block-height (get duration service)))
+    )
+    (asserts! (validate-subscription-input service-id) ERR_INVALID_INPUT)
+    (try! (stx-transfer? (get price service) tx-sender (as-contract tx-sender)))
+    (mint-subscription tx-sender service-id end-block)
+  )
+)
+
 (define-public (claim-cross-chain-subscription (service-id uint) (chain (string-ascii 20)) (nft-id (string-ascii 66)))
   (let
     (
       (service (unwrap! (map-get? services service-id) ERR_NOT_FOUND))
-      (subscription-id (+ (var-get last-token-id) u1))
       (end-block (+ block-height (get duration service)))
       (claim-key {chain: chain, nft-id: nft-id})
     )
     (asserts! (is-eq tx-sender (var-get oracle-address)) ERR_NOT_AUTHORIZED)
     (asserts! (validate-subscription-input service-id) ERR_INVALID_INPUT)
     (asserts! (is-none (map-get? cross-chain-claims claim-key)) ERR_ALREADY_CLAIMED)
-    
-    (try! (nft-mint? subscription-nft subscription-id tx-sender))
-    (map-set subscriptions subscription-id {
-      owner: tx-sender,
-      service-id: service-id,
-      end-block: end-block
-    })
     (map-set cross-chain-claims claim-key true)
-    (var-set last-token-id subscription-id)
-    (ok subscription-id)
+    (mint-subscription tx-sender service-id end-block)
   )
 )
 
-;; Set oracle address
 (define-public (set-oracle-address (new-oracle principal))
   (begin
     (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
@@ -136,29 +114,30 @@
   )
 )
 
-;; Get subscription details
-(define-read-only (get-subscription-details (subscription-id uint))
-  (map-get? subscriptions subscription-id)
-)
-
-;; Get service details
-(define-read-only (get-service-details (service-id uint))
-  (map-get? services service-id)
-)
-
-;; Check if cross-chain NFT has been claimed
-(define-read-only (is-cross-chain-nft-claimed (chain (string-ascii 20)) (nft-id (string-ascii 66)))
-  (default-to false (map-get? cross-chain-claims {chain: chain, nft-id: nft-id}))
-)
-
-;; NFT functions
 (define-public (transfer (token-id uint) (sender principal) (recipient principal))
   (begin
     (asserts! (is-eq tx-sender sender) ERR_NOT_AUTHORIZED)
     (asserts! (is-some (nft-get-owner? subscription-nft token-id)) ERR_NOT_FOUND)
     (asserts! (is-valid-principal recipient) ERR_INVALID_PRINCIPAL)
-    (nft-transfer? subscription-nft token-id sender recipient)
+    (try! (nft-transfer? subscription-nft token-id sender recipient))
+    (let ((subscription (unwrap! (map-get? subscriptions token-id) ERR_NOT_FOUND)))
+      (ok (map-set subscriptions token-id 
+        (merge subscription {owner: recipient})))
+    )
   )
+)
+
+;; Read-only Functions
+(define-read-only (get-subscription-details (subscription-id uint))
+  (map-get? subscriptions subscription-id)
+)
+
+(define-read-only (get-service-details (service-id uint))
+  (map-get? services service-id)
+)
+
+(define-read-only (is-cross-chain-nft-claimed (chain (string-ascii 20)) (nft-id (string-ascii 66)))
+  (default-to false (map-get? cross-chain-claims {chain: chain, nft-id: nft-id}))
 )
 
 (define-read-only (get-owner (token-id uint))
