@@ -1,4 +1,4 @@
-;; NFT-based Subscription Service (Improved)
+;; NFT-based Subscription Service 
 
 ;; Constants
 (define-constant CONTRACT_OWNER tx-sender)
