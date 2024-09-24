@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@stacks/connect": "^7.7.1",
+    "@stacks/network": "^6.16.0",
+    "@stacks/transactions": "^6.16.1",
+    "semantic-ui-react": "^2.1.5"
+  }
+}
